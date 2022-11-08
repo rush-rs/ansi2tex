@@ -1,3 +1,7 @@
+use std::{fs, path::PathBuf, process};
+
+use clap::Parser;
+
 const COLORS: [&str; 256] = [
     "3f4451", "e05561", "8cc265", "d1b652", "4aa5f0", "c162de", "42b3c2", "e6e6e6", "4f5666",
     "ff616e", "a5e075", "f0c85d", "4dc4ff", "de73ff", "4cd1e0", "d7dae0", "000000", "00005f",
@@ -30,6 +34,21 @@ const COLORS: [&str; 256] = [
     "d0d0d0", "dadada", "e4e4e4", "eeeeee",
 ];
 
+#[derive(clap::Parser)]
+struct Cli {
+    file: PathBuf,
+}
+
+fn main() {
+    let cli = Cli::parse();
+    let input = fs::read_to_string(cli.file).unwrap_or_else(|err| {
+        eprintln!("\x1b[1;31mError while reading file:\x1b[22m {err}");
+        process::exit(1);
+    });
+    let output = parse(input);
+    print!("{output}");
+}
+
 enum Style {
     Bold,
     Italic,
@@ -54,12 +73,12 @@ pub fn parse(input: String) -> String {
         if !part.starts_with('[') {
             out += &("\x1b".to_owned() + part)
         }
-        let split: Vec<_> = part.split('m').collect();
-        if split.len() == 1 {
-            out += &("\x1b".to_owned() + part)
-        }
+        let Some((args, text)) = part.split_once('m') else {
+            out += &("\x1b".to_owned() + part);
+            continue;
+        };
 
-        let mut args = split[0][1..].split(';');
+        let mut args = args[1..].split(';');
         while let Some(arg) = args.next() {
             if arg.is_empty() {
                 styles.clear();
@@ -143,7 +162,7 @@ pub fn parse(input: String) -> String {
             }
         }
 
-        for line in split[1].lines() {
+        for line in text.split('\n') {
             let mut command = String::new();
             for style in &styles {
                 match style {
@@ -154,19 +173,20 @@ pub fn parse(input: String) -> String {
                         command += &format!("×textcolor[HTML]{{{}}}{{", COLORS[*code as usize])
                     }
                     Style::FgColor(Color::Rgb(r, g, b)) => {
-                        command += &format!("×textcolor[RGB]{{{r},{g},{b}}}{{")
+                        command += &format!("×textcolor[HTML]{{{r:02x}{g:02x}{b:02x}}}{{")
                     }
                     Style::BgColor(Color::Simple(code)) => {
                         command += &format!("×colorbox[HTML]{{{}}}{{", COLORS[*code as usize])
                     }
                     Style::BgColor(Color::Rgb(r, g, b)) => {
-                        command += &format!("×colorbox[RGB]{{{r},{g},{b}}}{{")
+                        command += &format!("×colorbox[RGB]{{{r:02x},{g:02x},{b:02x}}}{{")
                     }
                 }
             }
             out += &format!(
-                "{command}{line}{braces}\n",
-                braces = "}".repeat(styles.len())
+                "{command}{text}{braces}\n",
+                text = line.replace('{', "×{").replace('}', "×}"),
+                braces = "}".repeat(styles.len()),
             )
         }
         // remove last newline
@@ -174,8 +194,4 @@ pub fn parse(input: String) -> String {
     }
 
     out
-}
-
-fn main() {
-    println!("{}", parse("\x1b[31mred\nline\x1b[0masd".to_string()));
 }

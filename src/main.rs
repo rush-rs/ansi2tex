@@ -65,7 +65,7 @@ enum Color {
 pub fn parse(input: String) -> String {
     let mut out = String::new();
     let mut split = input.split('\x1b');
-    out += split.next().unwrap(); // first part is always just text
+    out += split.next().expect("first part is always just text");
 
     let mut styles = vec![];
 
@@ -99,62 +99,7 @@ pub fn parse(input: String) -> String {
                 Ok(col @ 90..=97) => styles.push(Style::FgColor(Color::Simple(col - 82))),
                 Ok(col @ 100..=107) => styles.push(Style::BgColor(Color::Simple(col - 92))),
                 Ok(38) | Ok(48) => {
-                    if let Some(arg2) = args.next() {
-                        if let Ok(arg2) = arg2.parse::<u8>() {
-                            if arg2 == 2 {
-                                let r = if let Some(arg3) = args.next() {
-                                    if let Ok(arg3) = arg3.parse::<u8>() {
-                                        arg3
-                                    } else {
-                                        continue;
-                                    }
-                                } else {
-                                    continue;
-                                };
-                                let g = if let Some(arg4) = args.next() {
-                                    if let Ok(arg4) = arg4.parse::<u8>() {
-                                        arg4
-                                    } else {
-                                        continue;
-                                    }
-                                } else {
-                                    continue;
-                                };
-                                let b = if let Some(arg5) = args.next() {
-                                    if let Ok(arg5) = arg5.parse::<u8>() {
-                                        arg5
-                                    } else {
-                                        continue;
-                                    }
-                                } else {
-                                    continue;
-                                };
-                                styles.push(if arg == "38" {
-                                    Style::FgColor(Color::Rgb(r, g, b))
-                                } else {
-                                    Style::BgColor(Color::Rgb(r, g, b))
-                                })
-                            } else if arg2 == 5 {
-                                if let Some(arg3) = args.next() {
-                                    if let Ok(arg3) = arg3.parse::<u8>() {
-                                        styles.push(if arg == "38" {
-                                            Style::FgColor(Color::Simple(arg3))
-                                        } else {
-                                            Style::BgColor(Color::Simple(arg3))
-                                        })
-                                    } else {
-                                        continue;
-                                    }
-                                } else {
-                                    continue;
-                                }
-                            } else {
-                                continue;
-                            }
-                        } else {
-                            continue;
-                        }
-                    } else {
+                    if parse_color(arg, &mut args, &mut styles).is_none() {
                         continue;
                     }
                 }
@@ -194,4 +139,31 @@ pub fn parse(input: String) -> String {
     }
 
     out
+}
+
+fn parse_color<'a>(
+    arg: &str,
+    args: &mut impl Iterator<Item = &'a str>,
+    styles: &mut Vec<Style>,
+) -> Option<()> {
+    let arg2 = args.next()?.parse::<u8>().ok()?;
+    if arg2 == 2 {
+        let r = args.next()?.parse::<u8>().ok()?;
+        let g = args.next()?.parse::<u8>().ok()?;
+        let b = args.next()?.parse::<u8>().ok()?;
+        styles.push(if arg == "38" {
+            Style::FgColor(Color::Rgb(r, g, b))
+        } else {
+            Style::BgColor(Color::Rgb(r, g, b))
+        });
+    } else if arg2 == 5 {
+        let arg3 = args.next()?.parse::<u8>().ok()?;
+        styles.push(if arg == "38" {
+            Style::FgColor(Color::Simple(arg3))
+        } else {
+            Style::BgColor(Color::Simple(arg3))
+        });
+    }
+
+    Some(())
 }

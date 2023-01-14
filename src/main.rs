@@ -179,7 +179,7 @@ pub fn parse(input: String) -> String {
                         command += &format!("×colorbox[HTML]{{{}}}{{", COLORS[*code as usize])
                     }
                     Style::BgColor(Color::Rgb(r, g, b)) => {
-                        command += &format!("×colorbox[RGB]{{{r:02x},{g:02x},{b:02x}}}{{")
+                        command += &format!("×colorbox[HTML]{{{r:02x}{g:02x}{b:02x}}}{{")
                     }
                 }
             }
